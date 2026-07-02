@@ -67,6 +67,12 @@ def _upsert_dcliente(core: Session, p: dict) -> int:
 
 def _insert_dsolicitud(core: Session, pkcliente: int, p: dict, entidad_id: str) -> str:
     cod = ("SOLM" + entidad_id.replace("-", "")[:8]).upper()[:20]
+    existente = core.execute(
+        text("SELECT codsolicitud FROM dsolicitud WHERE codsolicitud = :cod"),
+        {"cod": cod},
+    ).first()
+    if existente:
+        return str(existente[0])
     plazo = int(p.get("plazo_meses", 12))
     core.execute(
         text(
@@ -97,14 +103,16 @@ def _insert_dsolicitud(core: Session, pkcliente: int, p: dict, entidad_id: str) 
     return cod
 
 
-def promover(db: Session) -> dict:
+def promover(db: Session, entidad_id: str | None = None) -> dict:
     """Procesa la cola sync_outbox pendiente. Devuelve conteos."""
+    filtro_entidad = " AND entidad_id = :entidad_id" if entidad_id else ""
     pendientes = db.execute(
         text(
             """SELECT id, entidad_id, payload FROM sync_outbox
                WHERE estado = 'pendiente' AND entidad = 'solicitudes_credito'
-               ORDER BY created_at"""
-        )
+            """ + filtro_entidad + " ORDER BY created_at"
+        ),
+        {"entidad_id": entidad_id} if entidad_id else {},
     ).mappings().all()
 
     aplicados, errores = 0, 0

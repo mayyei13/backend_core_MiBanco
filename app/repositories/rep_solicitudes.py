@@ -103,7 +103,8 @@ def crear_desde_cliente(db: Session, d: dict) -> dict:
             """SELECT id, agencia_id
                FROM asesores
                WHERE activo = TRUE
-               ORDER BY created_at NULLS LAST
+               ORDER BY CASE WHEN codigo_empleado = '0001' THEN 0 ELSE 1 END,
+                        codigo_empleado
                LIMIT 1"""
         )
     ).mappings().first()
@@ -277,6 +278,23 @@ def listar(db: Session, asesor_id: str) -> list[dict]:
     return [_row_resumen(r) for r in rows]
 
 
+def listar_todas(db: Session) -> list[dict]:
+    """Solicitudes del mes visibles para supervisor/administrador."""
+    rows = db.execute(
+        text(
+            """
+            SELECT s.id, s.numero_expediente, s.monto_solicitado, s.monto_aprobado,
+                   s.estado, s.created_at, c.nombres, c.apellidos
+            FROM solicitudes_credito s
+            JOIN clientes c ON c.id = s.cliente_id
+            WHERE date_trunc('month', s.created_at) = date_trunc('month', now())
+            ORDER BY s.created_at DESC
+            """
+        )
+    ).mappings().all()
+    return [_row_resumen(r) for r in rows]
+
+
 def listar_demo(db: Session) -> list[dict]:
     """Solicitudes del asesor demo, recientes primero, sin token."""
     asesor = db.execute(
@@ -284,7 +302,8 @@ def listar_demo(db: Session) -> list[dict]:
             """SELECT id
                FROM asesores
                WHERE activo = TRUE
-               ORDER BY created_at NULLS LAST
+               ORDER BY CASE WHEN codigo_empleado = '0001' THEN 0 ELSE 1 END,
+                        codigo_empleado
                LIMIT 1"""
         )
     ).first()

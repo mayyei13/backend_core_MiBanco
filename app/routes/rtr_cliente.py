@@ -17,6 +17,7 @@ from app.schemas.sch_cliente import (
 from app.schemas.sch_solicitudes import SolicitudIn, SolicitudCreada, SolicitudResumen
 from app.controllers import ctl_auth_cliente
 from app.repositories import rep_cliente, rep_solicitudes
+from app.services import svc_promocion
 
 router = APIRouter()
 
@@ -107,7 +108,9 @@ def crear_solicitud_cliente(
     db: Session = Depends(get_db),
 ):
     """Registra una solicitud desde la App Clientes y la asigna a cartera."""
-    return rep_solicitudes.crear_desde_cliente(db, data.model_dump())
+    solicitud = rep_solicitudes.crear_desde_cliente(db, data.model_dump())
+    svc_promocion.promover(db, solicitud["id"])
+    return solicitud
 
 
 @router.get("/solicitudes/{numero_documento}", response_model=list[SolicitudResumen])

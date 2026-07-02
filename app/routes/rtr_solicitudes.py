@@ -7,6 +7,7 @@ from app.schemas.sch_solicitudes import (
     DecisionComiteIn, DesembolsoIn, SolicitudIn, SolicitudCreada, SolicitudResumen,
 )
 from app.repositories import rep_solicitudes
+from app.services import svc_promocion
 
 router = APIRouter()
 
@@ -27,9 +28,11 @@ def crear_solicitud(
     asesor: dict = Depends(get_current_asesor),
 ):
     """Registra una solicitud de credito (M5 / HU-17)."""
-    return rep_solicitudes.crear(
+    solicitud = rep_solicitudes.crear(
         db, asesor["asesor_id"], asesor.get("agencia_id"), data.model_dump()
     )
+    svc_promocion.promover(db, solicitud["id"])
+    return solicitud
 
 
 @router.get("", response_model=list[SolicitudResumen])
@@ -38,6 +41,8 @@ def listar_solicitudes(
     asesor: dict = Depends(get_current_asesor),
 ):
     """Historial de solicitudes del mes (HU-20) y tablero de estado (M9)."""
+    if asesor.get("perfil", "").lower() in {"supervisor", "administrador"}:
+        return rep_solicitudes.listar_todas(db)
     return rep_solicitudes.listar(db, asesor["asesor_id"])
 
 

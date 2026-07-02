@@ -13,7 +13,8 @@ def primer_asesor_activo(db: Session) -> str | None:
             """SELECT id
                FROM asesores
                WHERE activo = TRUE
-               ORDER BY created_at NULLS LAST
+               ORDER BY CASE WHEN codigo_empleado = '0001' THEN 0 ELSE 1 END,
+                        codigo_empleado
                LIMIT 1"""
         )
     ).first()
