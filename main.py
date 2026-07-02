@@ -7,7 +7,7 @@ from app.routes import (
     rtr_cliente, rtr_casos,
 )
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 
 app = FastAPI(
     title="Core Mobile - MiBanco",
@@ -19,6 +19,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=settings.cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
