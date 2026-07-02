@@ -7,11 +7,13 @@ from app.routes import (
     rtr_cliente, rtr_casos,
 )
 
+APP_VERSION = "1.0.1"
+
 app = FastAPI(
     title="Core Mobile - MiBanco",
     description="Capa operacional MiBanco para canales moviles: fuerza de ventas en campo "
                 "y app de clientes. Alimenta al core bd_core_financiero.",
-    version="1.0.0",
+    version=APP_VERSION,
 )
 
 app.add_middleware(
@@ -40,10 +42,14 @@ app.include_router(rtr_cliente.router, prefix="/cliente", tags=["Cliente (App)"]
 
 @app.get("/")
 def root():
-    return {"sistema": "Core Mobile MiBanco", "version": "1.0.0", "status": "ok"}
+    return {"sistema": "Core Mobile MiBanco", "version": APP_VERSION, "status": "ok"}
 
 
 @app.get("/health", tags=["Health"])
 def health():
     """Endpoint liviano para health checks del proveedor cloud."""
-    return {"status": "ok", "service": "mibanco-core-mobile"}
+    return {
+        "status": "ok",
+        "service": "mibanco-core-mobile",
+        "version": APP_VERSION,
+    }
