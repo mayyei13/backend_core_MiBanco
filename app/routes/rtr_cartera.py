@@ -32,6 +32,20 @@ def marcar_visita(
     return {"status": "ok", "cartera_id": cartera_id, "estado_visita": data.resultado}
 
 
+@router.post("/{cartera_id}/comite")
+def enviar_comite(
+    cartera_id: str,
+    data: EnviarComiteIn,
+    db: Session = Depends(get_db),
+    asesor: dict = Depends(get_current_asesor),
+):
+    """Envia la evaluacion autenticada al comite."""
+    ok = rep_cartera.enviar_comite(db, asesor["asesor_id"], cartera_id, data.model_dump())
+    if not ok:
+        raise HTTPException(status_code=404, detail="Item de cartera o solicitud no encontrado")
+    return {"status": "ok", "cartera_id": cartera_id, "estado": "recibido_comite"}
+
+
 @router.get("/demo", response_model=list[CarteraItemOut])
 def listar_cartera_demo(
     fecha: date | None = None,

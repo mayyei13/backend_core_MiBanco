@@ -7,7 +7,7 @@ from app.routes import (
     rtr_cliente, rtr_casos,
 )
 
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.1.0"
 
 app = FastAPI(
     title="Core Mobile - MiBanco",

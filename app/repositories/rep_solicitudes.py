@@ -314,6 +314,8 @@ def listar_demo(db: Session) -> list[dict]:
 
 def decidir_comite(db: Session, solicitud_id: str, data: dict) -> dict | None:
     decision = data.get("decision")
+    if decision == "desaprobado":
+        decision = "rechazado"
     if decision not in {"aprobado", "condicionado", "rechazado"}:
         raise ValueError("Decision de comite invalida")
 
@@ -365,6 +367,7 @@ def decidir_comite(db: Session, solicitud_id: str, data: dict) -> dict | None:
 
 
 def desembolsar(db: Session, solicitud_id: str, data: dict | None = None) -> dict | None:
+    fecha_desembolso = (data or {}).get("fecha_desembolso") or date.today()
     row = db.execute(
         text(
             """SELECT id, numero_expediente, estado, monto_aprobado, cliente_id
@@ -380,22 +383,36 @@ def desembolsar(db: Session, solicitud_id: str, data: dict | None = None) -> dic
 
     db.execute(
         text(
+            """ALTER TABLE solicitudes_credito
+               ADD COLUMN IF NOT EXISTS fecha_desembolso_programada DATE"""
+        )
+    )
+    db.execute(
+        text(
             """UPDATE solicitudes_credito
                SET estado = 'desembolsado',
+                   fecha_desembolso_programada = :fecha,
                    pendiente_sync = TRUE,
                    updated_at = now()
                WHERE id = :id"""
         ),
-        {"id": solicitud_id},
+        {"id": solicitud_id, "fecha": fecha_desembolso},
     )
     _outbox(db, solicitud_id, "desembolso", {
         "numero_expediente": row["numero_expediente"],
         "monto_desembolsado": float(row["monto_aprobado"] or 0),
+        "fecha_desembolso": fecha_desembolso.isoformat(),
         "observacion": (data or {}).get("observacion"),
     })
-    rep_cliente.materializar_productos_por_cliente_id(db, str(row["cliente_id"]))
+    if fecha_desembolso <= date.today():
+        rep_cliente.materializar_productos_por_cliente_id(db, str(row["cliente_id"]))
     db.commit()
-    return {"id": solicitud_id, "numero_expediente": row["numero_expediente"], "estado": "desembolsado"}
+    return {
+        "id": solicitud_id,
+        "numero_expediente": row["numero_expediente"],
+        "estado": "desembolsado",
+        "fecha_desembolso": fecha_desembolso.isoformat(),
+    }
 
 
 def _outbox(db: Session, solicitud_id: str, evento: str, payload: dict) -> None:

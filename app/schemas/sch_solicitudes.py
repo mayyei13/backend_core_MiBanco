@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import date
 
 
 class SolicitudIn(BaseModel):
@@ -48,3 +49,4 @@ class DecisionComiteIn(BaseModel):
 
 class DesembolsoIn(BaseModel):
     observacion: Optional[str] = None
+    fecha_desembolso: Optional[date] = None
