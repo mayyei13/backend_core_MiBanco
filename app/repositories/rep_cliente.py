@@ -240,33 +240,36 @@ def asegurar_cliente_demo_login(db: Session, numero_documento: str) -> None:
                LIMIT 1"""
         )
     ).mappings().first()
-    expediente = f"EXP-DEMO-{numero_documento[-4:]}"
-    db.execute(
-        text(
-            """INSERT INTO solicitudes_credito
-                 (id, numero_expediente, asesor_id, cliente_id, agencia_id,
-                  canal, tipo_negocio, nombre_negocio, ingresos_estimados,
-                  monto_solicitado, monto_aprobado, plazo_meses, moneda,
-                  tipo_cuota, garantia, destino_credito, cuota_estimada,
-                  tea_referencial, estado, firma_cliente_base64, pendiente_sync)
-               SELECT :id, :exp, :asesor, :cliente_id, :agencia,
-                      'cliente', 'Bodega', 'Bodega Demo MiBanco', 3200.00,
-                      2500.00, 2500.00, 12, 'PEN', 'mensual',
-                      'sin_garantia', 'Capital de trabajo', 250.00,
-                      43.92, 'desembolsado', 'firma_demo_cliente', TRUE
-               WHERE NOT EXISTS (
-                   SELECT 1 FROM solicitudes_credito
-                   WHERE numero_expediente = :exp
-               )"""
-        ),
-        {
-            "id": str(uuid.uuid4()),
-            "exp": expediente,
-            "asesor": asesor["id"] if asesor else None,
-            "agencia": asesor["agencia_id"] if asesor else None,
-            "cliente_id": str(cliente["id"]),
-        },
-    )
+    # solicitudes_credito exige asesor_id. En una BD cloud recien creada puede
+    # no haber asesores todavia; el login del cliente no debe fallar por eso.
+    if asesor:
+        expediente = f"EXP-DEMO-{numero_documento[-4:]}"
+        db.execute(
+            text(
+                """INSERT INTO solicitudes_credito
+                     (id, numero_expediente, asesor_id, cliente_id, agencia_id,
+                      canal, tipo_negocio, nombre_negocio, ingresos_estimados,
+                      monto_solicitado, monto_aprobado, plazo_meses, moneda,
+                      tipo_cuota, garantia, destino_credito, cuota_estimada,
+                      tea_referencial, estado, firma_cliente_base64, pendiente_sync)
+                   SELECT :id, :exp, :asesor, :cliente_id, :agencia,
+                          'cliente', 'Bodega', 'Bodega Demo MiBanco', 3200.00,
+                          2500.00, 2500.00, 12, 'PEN', 'mensual',
+                          'sin_garantia', 'Capital de trabajo', 250.00,
+                          43.92, 'desembolsado', 'firma_demo_cliente', TRUE
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM solicitudes_credito
+                       WHERE numero_expediente = :exp
+                   )"""
+            ),
+            {
+                "id": str(uuid.uuid4()),
+                "exp": expediente,
+                "asesor": asesor["id"],
+                "agencia": asesor["agencia_id"],
+                "cliente_id": str(cliente["id"]),
+            },
+        )
     _materializar_productos_demo(db, cliente)
 
 
