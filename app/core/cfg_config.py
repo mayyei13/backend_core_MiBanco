@@ -18,7 +18,11 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
-        return [origin for origin in origins if origin] or ["*"]
+        public_origins = [
+            "https://fronted-core-mi-banco.vercel.app",
+        ]
+        allowed_origins = [origin for origin in origins if origin]
+        return list(dict.fromkeys([*allowed_origins, *public_origins]))
 
     class Config:
         env_file = ".env"
