@@ -25,6 +25,50 @@ _PK_AGENCIA = 64
 _PK_ASESOR = 70
 
 
+def _ensure_core_schema(core: Session) -> None:
+    """Crea el esquema minimo del puente si el nucleo aun no lo tiene."""
+    core.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS dcliente (
+                pkcliente BIGSERIAL PRIMARY KEY,
+                codcliente VARCHAR(12) UNIQUE NOT NULL,
+                nomcliente VARCHAR(100) NOT NULL,
+                pkclasepersona INTEGER,
+                codclasepersona VARCHAR(10),
+                desclasepersona VARCHAR(100),
+                fechaingresocaja DATE,
+                pktipodocumentoidentidad INTEGER,
+                codtipodocumentoidentidad VARCHAR(10),
+                destipodocumentoidentidad VARCHAR(100),
+                numerodocumentoidentidad VARCHAR(20) UNIQUE NOT NULL
+            )
+            """
+        )
+    )
+    core.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS dsolicitud (
+                pksolicitud BIGSERIAL PRIMARY KEY,
+                codsolicitud VARCHAR(20) UNIQUE NOT NULL,
+                pkcliente BIGINT NOT NULL REFERENCES dcliente(pkcliente),
+                pksolicitudestado INTEGER NOT NULL,
+                pkmoneda INTEGER NOT NULL,
+                pkproducto INTEGER NOT NULL,
+                montosolicitudcredito NUMERIC(14, 2) NOT NULL,
+                nrocuotasolicitud INTEGER NOT NULL,
+                plazosolicitudcredito INTEGER NOT NULL,
+                fechasolicitudcredito DATE NOT NULL,
+                pkagencia INTEGER,
+                pkasesor INTEGER,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+    )
+
+
 def _upsert_dcliente(core: Session, p: dict) -> int:
     doc = p["numero_documento"]
     row = core.execute(
@@ -105,6 +149,18 @@ def _insert_dsolicitud(core: Session, pkcliente: int, p: dict, entidad_id: str) 
 
 def promover(db: Session, entidad_id: str | None = None) -> dict:
     """Procesa la cola sync_outbox pendiente. Devuelve conteos."""
+    if entidad_id:
+        db.execute(
+            text(
+                """UPDATE sync_outbox
+                   SET estado = 'pendiente', ultimo_error = NULL
+                   WHERE entidad = 'solicitudes_credito'
+                     AND entidad_id = :entidad_id
+                     AND estado = 'error'"""
+            ),
+            {"entidad_id": entidad_id},
+        )
+        db.commit()
     filtro_entidad = " AND entidad_id = :entidad_id" if entidad_id else ""
     pendientes = db.execute(
         text(
@@ -121,6 +177,7 @@ def promover(db: Session, entidad_id: str | None = None) -> dict:
         for o in pendientes:
             p = o["payload"]  # JSONB -> dict
             try:
+                _ensure_core_schema(core)
                 pkcliente = _upsert_dcliente(core, p)
                 cod = _insert_dsolicitud(core, pkcliente, p, str(o["entidad_id"]))
                 core.commit()
